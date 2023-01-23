@@ -9,6 +9,7 @@ from models.networks import _DenseBlock, _Transition, RDB
 from collections import OrderedDict
 import functools
 
+
 class PatchDiscriminator(nn.Module):
     """Defines a PatchGAN discriminator"""
 
