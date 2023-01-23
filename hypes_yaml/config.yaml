@@ -1,0 +1,107 @@
+name: crack_dense_unet_121
+train_file:
+  - data/pascal_clean_more_val/train
+val_file:
+  - data/pascal_clean_more_val/val
+test_file:
+  - data/pascal_clean_more_val/val
+real_file:
+  - data/real_old_resize/
+train_params:
+  solver:
+    name: Adam
+    lr: 0.0001
+    params:
+      eps: 1e-10
+      weight_decay: 1e-4
+  # final output loss
+  loss:
+    ssim:
+      weight: 1.0
+      args: false
+    l1:
+      weight: 1.0
+      args: false
+    histogram:
+      weight: 0.1
+      args: false
+
+  batch_size: 2
+  epoches: 51
+  display_freq: 5
+  eval_freq: 1
+  writer_freq: 5
+  use_gpu: true
+  gpu_id: 0
+  ref_json: false # whether load reference image from json file
+arch:
+  backbone: dense121_unet_histogram_attention
+  args:
+    input_channel: 2
+    growthRate: 32
+    scale: 4
+    bilinear: true
+    drop_rate: 0.5
+    nDenseLayer:
+      - 8
+      - 12
+      - 6
+      - 4
+    pretrained: false
+crack_arch:
+#   backbone: res_dense_network
+#   args: false
+  backbone: dense121_unet
+  args:
+    input_channel: 1
+    growthRate: 32
+    scale: 4
+    bilinear: true
+    drop_rate: 0.5
+    nDenseLayer:
+      - 8
+      - 12
+      - 6
+      - 4
+    pretrained: false
+
+######################################
+########GAN Related Only##############
+######################################
+
+gan:
+  generator:
+    # we pretrain model use train_params first
+    solver:
+      name: RMSprop
+      lr: 0.00005
+  discrimiator:
+    pretrained_epoch: 0
+    n_iter: 2
+    solver:
+      name: RMSprop
+      lr: 0.00005
+    arch:
+      backbone: patch_discriminator
+      args:
+        nc: 3
+        isize: 896
+        ndf: 16
+        extra_layers: 0
+        bn: true
+  epoch: 16
+  writer_freq: 5
+  eval_freq: 1
+  display_freq: 1
+  batch_size: 4 #batch size for discriminator
+  loss:
+   wasserstein:
+      gen_weight: 1.0
+      dis_weight: 1.0
+      args: false
+
+
+
+
+
+
