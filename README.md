@@ -11,8 +11,9 @@ Due to copyright restrictions, our real old photo dataset is only available upon
 Then we will reply to you with the download link in 3 days.
 
 ### File Structure
-There will be two folders in  the shared data link: `real_old_data` and `real_old_ref`. The first one contains
-200 image pair with old photos and the repared ones. The second folder contains the reference images we used in our paper.
+There will be three folders in  the shared data link: `real_old_data`, `real_old_ref`, and `texture2`. The first one contains
+200 image pair with old photos and the repared ones. The second folder contains the reference images we used in our paper. The third folder
+contains the necessary texture files you will need to generate fake old photos.
 
 
 ## Installation
