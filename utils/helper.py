@@ -98,7 +98,7 @@ def create_dataset(hypes, train=True, gan=False, real=False, crack_dir=None):
 
     if train:
         # if we only train the color restoration part
-        if crack_dir is None:
+        if not crack_dir:
             transform_operation = transforms.Compose([RandomCrop(256),
                                                       TolABTensor()])
         else:
@@ -126,7 +126,7 @@ def create_dataset(hypes, train=True, gan=False, real=False, crack_dir=None):
         return loader_train, loader_val
 
     else:
-        if crack_dir is None:
+        if not crack_dir:
             transform_operation = transforms.Compose(TolABTensor())
         else:
             transform_operation = transforms.Compose([
