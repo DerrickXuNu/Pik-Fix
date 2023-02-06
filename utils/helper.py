@@ -6,9 +6,11 @@ import re
 import yaml
 import importlib
 import glob
-import torch.optim as optim
 from datetime import datetime
+
+import torch.optim as optim
 import torchvision.utils as utils
+import torchvision.transforms as transforms
 
 from utils import loss
 from datasets.OldPhotoDataset import *
@@ -65,7 +67,7 @@ def setup_train_crack(hypes, model_name='cracknet_rdn'):
     return full_path
 
 
-def create_dataset(hypes, train=True, gan=False, real=False):
+def create_dataset(hypes, train=True, gan=False, real=False, crack_dir=None):
     """
     create customized Datasets
     :param gan: Whether for gan training
@@ -75,13 +77,18 @@ def create_dataset(hypes, train=True, gan=False, real=False):
     """
     if real:
         dataset = RealOldPhotoDataset(hypes['real_file'],
-                                      transform=transforms.Compose([TolABTensor()]))
+                                      transform=transforms.Compose(
+                                          [TolABTensor()]))
+        # in case the users collect more old photo pairs and want to use those for training
         if train:
             dataset = RealOldPhotoDataset(hypes['real_file'],
-                                          transform=transforms.Compose([RandomCrop(256),
-                                                                        TolABTensor()]))
+                                          transform=transforms.Compose(
+                                              [RandomCrop(256),
+                                               TolABTensor()]))
             loader_train = DataLoader(dataset,
-                                      batch_size=hypes['gan']['batch_size'] if gan else hypes['train_params'][
+                                      batch_size=hypes['gan'][
+                                          'batch_size'] if gan else
+                                      hypes['train_params'][
                                           'batch_size'],
                                       shuffle=True,
                                       num_workers=4)
@@ -90,33 +97,44 @@ def create_dataset(hypes, train=True, gan=False, real=False):
             return dataset
 
     if train:
+        # if we only train the color restoration part
+        if crack_dir is None:
+            transform_operation = transforms.Compose([RandomCrop(256),
+                                                      TolABTensor()])
+        else:
+            transform_operation = transforms.Compose([
+                RandomBlur(),
+                CrackGenerator(),
+                RandomCrop(256),
+                TolABTensor()])
+
         train_dataset = OldPhotoDataset(hypes['train_file'],
-                                        transform=transforms.Compose([
-                                            RandomBlur(),
-                                            CrackGenerator(),
-                                            RandomCrop(256),
-                                            TolABTensor()]),
-                                        ref_json=hypes['train_params']['ref_json'])
+                                        transform=transform_operation,
+                                        ref_json=hypes['train_params'][
+                                            'ref_json'])
         loader_train = DataLoader(train_dataset,
-                                  batch_size=hypes['gan']['batch_size'] if gan else hypes['train_params']['batch_size'],
+                                  batch_size=hypes['gan'][
+                                      'batch_size'] if gan else
+                                  hypes['train_params']['batch_size'],
                                   shuffle=True,
                                   num_workers=4)
 
         val_dataset = OldPhotoDataset(hypes['val_file'],
-                                      transform=transforms.Compose([
-                                          RandomBlur(),
-                                          CrackGenerator(),
-                                          RandomCrop(256),
-                                          TolABTensor()]))
+                                      transform=transforms.Compose(transform_operation))
         loader_val = DataLoader(val_dataset, batch_size=1, shuffle=False)
 
         return loader_train, loader_val
 
     else:
+        if crack_dir is None:
+            transform_operation = transforms.Compose(TolABTensor())
+        else:
+            transform_operation = transforms.Compose([
+                RandomBlur(),
+                CrackGenerator(),
+                TolABTensor()])
         test_dataset = OldPhotoDataset(root_dir=hypes['test_file'],
-                                       transform=transforms.Compose([RandomBlur(),
-                                                                     CrackGenerator(),
-                                                                     TolABTensor()]))
+                                       transform=transform_operation)
         return test_dataset
 
 
@@ -148,8 +166,10 @@ def create_model(hypes, dis=False, crack=False):
             model = cls
 
     if model is None:
-        print('backbone not found in models folder. Please make sure you have a python file named %s and has a class'
-              'called %s ignoring upper/lower case' % (model_filename, target_model_name))
+        print(
+            'backbone not found in models folder. Please make sure you have a python file named %s and has a class'
+            'called %s ignoring upper/lower case' % (
+            model_filename, target_model_name))
         exit(0)
     instance = model(backbone_config)
     return instance
@@ -182,7 +202,8 @@ def setup_loss(hypes):
         criterion[name] = loss_func
 
     if 'intermediate' in hypes['train_params']:
-        for name, value in hypes['train_params']['intermediate']['loss'].items():
+        for name, value in hypes['train_params']['intermediate'][
+            'loss'].items():
             loss_func = getattr(loss, name)(value['args'])
             if hypes['train_params']['use_gpu']:
                 loss_func.cuda()
@@ -222,7 +243,8 @@ def setup_optimizer(method, model):
     if not optimizer_method:
         raise ValueError('{} is not supported'.format(method_dict['name']))
     if 'params' in method_dict:
-        return optimizer_method(model.parameters(), lr=method_dict['lr'], **method_dict['params'])
+        return optimizer_method(model.parameters(), lr=method_dict['lr'],
+                                **method_dict['params'])
     else:
         return optimizer_method(model.parameters(), lr=method_dict['lr'])
 
@@ -259,7 +281,8 @@ def load_saved_model(saved_path, model):
     return initial_epoch, model
 
 
-def log_images(input_l, input_batch, ref_ab, ref_gray, writer, model, epoch, att_model):
+def log_images(input_l, input_batch, ref_ab, ref_gray, writer, model, epoch,
+               att_model):
     """
     write the images to tensorboard for visualization
     :param input_data:  input image
@@ -275,9 +298,12 @@ def log_images(input_l, input_batch, ref_ab, ref_gray, writer, model, epoch, att
 
     output = lab_to_rgb(input_l, output).cuda()
 
-    im_input = utils.make_grid(input_batch.data, nrow=8, normalize=True, scale_each=True)
-    im_target = utils.make_grid(ref_gray.data, nrow=8, normalize=True, scale_each=True)
-    im_restore = utils.make_grid(output.data, nrow=8, normalize=True, scale_each=True)
+    im_input = utils.make_grid(input_batch.data, nrow=8, normalize=True,
+                               scale_each=True)
+    im_target = utils.make_grid(ref_gray.data, nrow=8, normalize=True,
+                                scale_each=True)
+    im_restore = utils.make_grid(output.data, nrow=8, normalize=True,
+                                 scale_each=True)
 
     writer.add_image('input image', im_input, epoch + 1)
     writer.add_image('groundtruth image', im_target, epoch + 1)
@@ -304,9 +330,12 @@ def log_images_crack(input_l, gt_l, writer, model, epoch):
     gt_l = (gt_l + 1.) / 2.
     input_l = (input_l + 1.) / 2.
 
-    im_target = utils.make_grid(gt_l.data, nrow=8, normalize=True, scale_each=True)
-    im_restore = utils.make_grid(output.data, nrow=8, normalize=True, scale_each=True)
-    im_input = utils.make_grid(input_l.data, nrow=8, normalize=True, scale_each=True)
+    im_target = utils.make_grid(gt_l.data, nrow=8, normalize=True,
+                                scale_each=True)
+    im_restore = utils.make_grid(output.data, nrow=8, normalize=True,
+                                 scale_each=True)
+    im_input = utils.make_grid(input_l.data, nrow=8, normalize=True,
+                               scale_each=True)
 
     writer.add_image('groundtruth image', im_target, epoch + 1)
     writer.add_image('input image', im_input, epoch + 1)
@@ -330,10 +359,18 @@ def val_eval(model, att_model, loader_val, writer, opt, epoch, crack_net):
     count = 0
     psnr = 0
     for j, batch_data in enumerate(loader_val):
-        input_batch, input_l, gt_ab, gt_l, ref_gray, ref_ab = batch_data['input_image'], \
-                                                              batch_data['input_L'], \
-                                                              batch_data['gt_ab'], batch_data['gt_L'], \
-                                                              batch_data['ref_gray'], batch_data['ref_ab']
+        input_batch, input_l, gt_ab, gt_l, ref_gray, ref_ab = batch_data[
+                                                                  'input_image'], \
+                                                              batch_data[
+                                                                  'input_L'], \
+                                                              batch_data[
+                                                                  'gt_ab'], \
+                                                              batch_data[
+                                                                  'gt_L'], \
+                                                              batch_data[
+                                                                  'ref_gray'], \
+                                                              batch_data[
+                                                                  'ref_ab']
 
         input_batch = input_batch.cuda()
         input_l = input_l.cuda()
@@ -355,7 +392,8 @@ def val_eval(model, att_model, loader_val, writer, opt, epoch, crack_net):
         count += 1
 
     print('++++++++++++++++++++++++++++++++++++++++++++')
-    print('At current epoch %d, the psnr on validation dataset is %f' % (epoch, psnr / count))
+    print('At current epoch %d, the psnr on validation dataset is %f' % (
+    epoch, psnr / count))
     writer.add_scalar('PSNR on Val', psnr, epoch)
 
     return writer
@@ -375,10 +413,18 @@ def val_eval_crack(model, loader_val, writer, epoch):
     count = 0
     psnr = 0
     for j, batch_data in enumerate(loader_val):
-        input_batch, input_l, gt_ab, gt_l, ref_gray, ref_ab = batch_data['input_image'], \
-                                                              batch_data['input_L'], \
-                                                              batch_data['gt_ab'], batch_data['gt_L'], \
-                                                              batch_data['ref_gray'], batch_data['ref_ab']
+        input_batch, input_l, gt_ab, gt_l, ref_gray, ref_ab = batch_data[
+                                                                  'input_image'], \
+                                                              batch_data[
+                                                                  'input_L'], \
+                                                              batch_data[
+                                                                  'gt_ab'], \
+                                                              batch_data[
+                                                                  'gt_L'], \
+                                                              batch_data[
+                                                                  'ref_gray'], \
+                                                              batch_data[
+                                                                  'ref_ab']
 
         input_l = input_l.cuda()
         gt_l = gt_l.cuda()
@@ -393,7 +439,8 @@ def val_eval_crack(model, loader_val, writer, epoch):
         count += 1
 
     print('++++++++++++++++++++++++++++++++++++++++++++')
-    print('At current epoch %d, the psnr on validation dataset is %f' % (epoch, psnr / count))
+    print('At current epoch %d, the psnr on validation dataset is %f' % (
+    epoch, psnr / count))
     writer.add_scalar('PSNR on Val', psnr, epoch)
 
     return writer

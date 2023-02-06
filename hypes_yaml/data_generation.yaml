@@ -1,0 +1,9 @@
+input_folder: data/DIV2K/DIV2K_valid_HR
+output_folder: data/DIV2K_output/validate
+multi_thread: true
+crop_size: 224 # must be a number can be divided by 8 at least
+origin_downgrade: 4 # whether two donwgrade orign image too
+downgrade: 8
+upgrade: 2
+train: true
+dataset_name: DIV2K

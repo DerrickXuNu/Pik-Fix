@@ -13,7 +13,18 @@ Then we will reply to you with the download link in 3 days.
 ### File Structure
 There will be three folders in  the shared data link: `real_old_data`, `real_old_ref`, and `texture2`. The first one contains
 200 image pair with old photos and the repared ones. The second folder contains the reference images we used in our paper. The third folder
-contains the necessary texture files you will need to generate fake old photos.
+contains the necessary texture files you will need to generate fake old photos. These files should be orgnaized as follows:
+```python
+- Pik-Fix
+    - data
+        - real_old_data
+        - real_old_ref
+        - texture2
+    - models
+    - datasets
+    - utils
+    - ...
+```
 
 
 ## Installation
@@ -22,4 +33,14 @@ conda create -n pikfix python=3.7
 conda activate pikfix
 conda install pytorch==1.2.0 torchvision==0.4.0 cudatoolkit=10.0 -c pytorch
 pip install -r requirements.txt
+python setup.py develop
+```
+
+## Synthetic Data Generation
+There are two ways 
+To generate synthetic old photos from good quality images, please first change
+the configuration file in `hypes_yaml/data_generation.yaml` to modify your data
+path, output path, and generation configurations. Next, run the following command:
+```commandline
+python utils/data_generation.py --hypes_yaml hypes_yaml/data_generation.yaml 
 ```

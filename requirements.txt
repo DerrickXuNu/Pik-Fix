@@ -4,3 +4,5 @@ opencv-python==4.5.2.54
 fastai==1.0.61
 tensorboardX==2.0
 scikit-image
+imutils
+imgaug
